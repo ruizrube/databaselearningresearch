@@ -5,10 +5,14 @@ import java.sql.SQLException;
 
 import org.springframework.jdbc.core.RowMapper;
 
-import es.uca.spifm.databaselearningresearch.dbloganalyzer.domain.DMLExercise;
-import es.uca.spifm.databaselearningresearch.dbloganalyzer.domain.DescribeExercise;
 import es.uca.spifm.databaselearningresearch.dbloganalyzer.domain.Exercise;
-import es.uca.spifm.databaselearningresearch.dbloganalyzer.domain.SelectExercise;
+import es.uca.spifm.databaselearningresearch.dbloganalyzer.domain.exercisetypes.DMLExercise;
+import es.uca.spifm.databaselearningresearch.dbloganalyzer.domain.exercisetypes.DescribeExercise;
+import es.uca.spifm.databaselearningresearch.dbloganalyzer.domain.exercisetypes.FunctionSelectExercise;
+import es.uca.spifm.databaselearningresearch.dbloganalyzer.domain.exercisetypes.JoinSelectExercise;
+import es.uca.spifm.databaselearningresearch.dbloganalyzer.domain.exercisetypes.NestedSelectExercise;
+import es.uca.spifm.databaselearningresearch.dbloganalyzer.domain.exercisetypes.SelectExercise;
+import es.uca.spifm.databaselearningresearch.dbloganalyzer.domain.exercisetypes.SimpleSelectExercise;
 
 public class ExerciseDBMapper implements RowMapper<Exercise> {
 	public Exercise mapRow(ResultSet rs, int rowNum) throws SQLException {
@@ -19,13 +23,13 @@ public class ExerciseDBMapper implements RowMapper<Exercise> {
 		if(rs.getString("exercises.type").equals("describe")) {
 			record = new DescribeExercise(id);
 		} else if(rs.getString("exercises.type").equals("simple")) {
-			record = new SelectExercise(id);
+			record = new SimpleSelectExercise(id);
 		} else if(rs.getString("exercises.type").equals("function")) {
-			record = new SelectExercise(id);
+			record = new FunctionSelectExercise(id);
 		} else if(rs.getString("exercises.type").equals("nested")) {
-			record = new SelectExercise(id);
+			record = new NestedSelectExercise(id);
 		} else if(rs.getString("exercises.type").equals("join")) {
-			record = new SelectExercise(id);
+			record = new JoinSelectExercise(id);
 		} else if(rs.getString("exercises.type").equals("dml")) {
 			record = new DMLExercise(id);			
 		}

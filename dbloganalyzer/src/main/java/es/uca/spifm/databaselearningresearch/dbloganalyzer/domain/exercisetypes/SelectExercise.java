@@ -1,13 +1,14 @@
 /**
  * 
  */
-package es.uca.spifm.databaselearningresearch.dbloganalyzer.domain;
+package es.uca.spifm.databaselearningresearch.dbloganalyzer.domain.exercisetypes;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.commons.text.similarity.JaroWinklerDistance;
 
+import es.uca.spifm.databaselearningresearch.dbloganalyzer.domain.Exercise;
 import net.sf.jsqlparser.JSQLParserException;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.statement.Statement;
@@ -48,10 +49,10 @@ public class SelectExercise extends Exercise {
 
 					if (this.fuzzyScore.fuzzyScore(providedTableName, expectedTableName) >= expectedTableName.length()
 							- 3) {
-						return (Double) distance.apply(inputText, problemQuery.toLowerCase());
+						return (Double) distance.apply(inputText, problemQuery);
 					}
 				} else { // No tiene tabla en FROM. Ej: SELECT dayname('1981-02-27')
-					return (Double) distance.apply(inputText, problemQuery.toLowerCase());
+					return (Double) distance.apply(inputText, problemQuery);
 
 				}
 			}

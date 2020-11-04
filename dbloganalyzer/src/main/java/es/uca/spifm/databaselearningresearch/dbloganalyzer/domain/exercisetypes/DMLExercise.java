@@ -1,7 +1,9 @@
 /**
  * 
  */
-package es.uca.spifm.databaselearningresearch.dbloganalyzer.domain;
+package es.uca.spifm.databaselearningresearch.dbloganalyzer.domain.exercisetypes;
+
+import es.uca.spifm.databaselearningresearch.dbloganalyzer.domain.Exercise;
 
 /**
  * @author ivanruizrube

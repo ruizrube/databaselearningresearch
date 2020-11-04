@@ -1,8 +1,5 @@
 package es.uca.spifm.databaselearningresearch.dbloganalyzer;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
@@ -13,10 +10,12 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.scheduling.annotation.EnableAsync;
 
 import com.zaxxer.hikari.HikariDataSource;
 
 @SpringBootApplication
+@EnableAsync
 public class Application implements CommandLineRunner {
 
 	@Bean
@@ -71,9 +70,9 @@ public class Application implements CommandLineRunner {
 	@Override
 	public void run(String... arg0) throws Exception {
 
-		LocalDateTime before = LocalDateTime.now();
+//		LocalDateTime before = LocalDateTime.now();
 
-		System.out.println("Arrancando pipeline..");
+		//System.out.println("Arrancando pipeline..");
 
 		//pipeline.prepareNoQueriesTable();
 		//pipeline.prepareLogTable();
@@ -82,10 +81,10 @@ public class Application implements CommandLineRunner {
 		//pipeline.generateProcessMiningOutput();
 		//pipeline.generateDataMiningOutput();
 
-		System.out.println("Pipeline arrancado a las " + before.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+		//		System.out.println("Pipeline arrancado a las " + before.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
 
-		System.out.println(
-				"Deteniendo pipeline a las " + LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+		//		System.out.println(
+		//		"Deteniendo pipeline a las " + LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
 
 	}
 }

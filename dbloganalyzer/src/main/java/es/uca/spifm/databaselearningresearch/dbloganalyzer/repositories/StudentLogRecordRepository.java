@@ -4,6 +4,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import javax.sql.DataSource;
@@ -28,16 +29,32 @@ public class StudentLogRecordRepository {
 		this.jdbcTemplate = new JdbcTemplate(dataSource);
 	}
 
+	
 	@Transactional(readOnly = true)
-	public List<StudentLogRecord> findAll() {
+	public Map<String, List<StudentLogRecord>> findAllGrouped() {
 
-		List<StudentLogRecord> result = new ArrayList<StudentLogRecord>();
+		Map<String, List<StudentLogRecord>> result;
 
 		result = jdbcTemplate.query("SELECT * FROM logs LEFT JOIN exercises ON logs.exercise_id=exercises.id ORDER BY user_host ASC, start_time ASC",
 				new StudentLogRecordResultSetExtractor());
 	
 		
-		return result.stream().filter(log->!log.getQueryText().startsWith("set") && !log.getQueryText().startsWith("describe") && !log.getQueryText().startsWith("show")).collect(Collectors.toList());
+		return result;
+	}
+	
+	@Transactional(readOnly = true)
+	public List<StudentLogRecord> findAll() {
+
+		List<StudentLogRecord> result=new ArrayList<StudentLogRecord>();
+		
+		Map<String, List<StudentLogRecord>> aux = findAllGrouped();
+		
+		for(String userId: aux.keySet()) {
+			result.addAll(aux.get(userId));
+		}
+		
+		
+		return result;
 	}
 
 	@Transactional
@@ -70,11 +87,20 @@ public class StudentLogRecordRepository {
 				record.getSimilarity(), record.getQueryText(), record.getId());
 		return updateCounts;
 	}
+	
+	
+	@Transactional
+	public int updateNullMatching(String userId) {
+		int updateCounts = jdbcTemplate.update(
+				"update logs set exercise_id = null, query_status= NULL, query_result= NULL, similarity=NULL where user_host = ?",
+				 userId);
+		return updateCounts;
+	}
 
 	@Transactional
 	public void fillNoQueriesTable() {
 		// Hay restriccion de no duplicados en query. Hacemos un insert ignore
-		jdbcTemplate.execute("INSERT IGNORE INTO BD20_admin.noqueries(query,ocurrencies,enabled)\n"
+		jdbcTemplate.execute("INSERT IGNORE INTO noqueries(query,ocurrencies,enabled)\n"
 				+ "SELECT DISTINCT LEFT(CONVERT(sql_text USING latin1), 254) as query, count(sql_text), 0 \n"
 				+ "FROM mysql.slow_log GROUP BY sql_text "
 				+ "HAVING count(query) >120");
@@ -86,7 +112,7 @@ public class StudentLogRecordRepository {
 	@Transactional
 	public void fillLogTable() {
 		jdbcTemplate.execute(
-				"INSERT INTO BD20_admin.logs (start_time, user_host, query_time, rows_sent, rows_examined, db, query_text)\n"
+				"INSERT INTO logs (start_time, user_host, query_time, rows_sent, rows_examined, db, query_text)\n"
 						+ "SELECT start_time, LEFT(user_host, LOCATE('[',user_host)-1) AS user_host, query_time, rows_sent, rows_examined, db, lower(CONVERT(sql_text USING latin1)) as query_text \n"
 						+ "FROM mysql.slow_log\n"
 						+ "WHERE user_host like 'u%' AND CONVERT(sql_text USING latin1) NOT IN (SELECT lower(query) FROM noqueries WHERE enabled=1)");

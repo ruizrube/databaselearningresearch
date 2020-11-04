@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.dao.DataAccessException;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 import es.uca.spifm.databaselearningresearch.dbloganalyzer.domain.Exercise;
@@ -29,17 +30,10 @@ public class ExerciseChecker {
 		this.studentLogRecordRepository = studentLogRecordRepository;
 	}
 
-	public List<StudentLogRecord> checkLogWithExercises(List<StudentLogRecord> logData, List<Exercise> exerciseData) {
+	@Async
+	public List<StudentLogRecord> checkUserLogWithExercises(List<StudentLogRecord> logData,
+			List<Exercise> exerciseData) {
 
-		runSolutions(exerciseData);
-
-		runStudentLogs(logData, exerciseData);
-
-		return logData;
-
-	}
-
-	private void runStudentLogs(List<StudentLogRecord> logData, List<Exercise> exerciseData) {
 		StudentLogRecord inputRecord;
 		for (int i = 1; i <= logData.size(); i++) {
 			inputRecord = logData.get(i - 1);
@@ -55,10 +49,11 @@ public class ExerciseChecker {
 			}
 
 		}
+		return logData;
 
 	}
 
-	private List<Exercise> runSolutions(List<Exercise> exerciseData) {
+	public List<Exercise> runSolutions(List<Exercise> exerciseData) {
 
 		Exercise exercise;
 		for (int i = 1; i <= exerciseData.size(); i++) {
@@ -67,8 +62,8 @@ public class ExerciseChecker {
 					+ exercise.getProblemStatement());
 
 			if (exercise.getValidationQuery() != null && !exercise.getValidationQuery().isEmpty()) {
-				aux.put(exercise.getId(),
-						playgroundRepository.retrieveDataFromSpecificDatabase(exercise.getValidationQuery(), "u12345678"));
+				aux.put(exercise.getId(), playgroundRepository
+						.retrieveDataFromSpecificDatabase(exercise.getValidationQuery(), "u12345678"));
 			} else {
 
 				aux.put(exercise.getId(), playgroundRepository.retrieveDataFromDefaultDB(exercise.getProblemQuery()));
@@ -86,20 +81,15 @@ public class ExerciseChecker {
 		String input_query = inputRecord.getQueryText();
 		Long rows_sent = inputRecord.getRowsSent();
 
-		// Checking the number of rows
-		if (expectedResults.size() != rows_sent) {
-			inputRecord.setQueryStatus(QueryStatus.WRONG_NUMBER_ROWS);
-			return inputRecord;
-		}
-
+	
 		// Executing the queries
 		List<Map<String, Object>> obtainedResults;
 		try {
 
 			if (inputRecord.getMatchedExercise().getValidationQuery() != null
 					&& !inputRecord.getMatchedExercise().getValidationQuery().isEmpty()) {
-				obtainedResults = playgroundRepository
-						.retrieveDataFromSpecificDatabase(inputRecord.getMatchedExercise().getValidationQuery(), inputRecord.getUserId());
+				obtainedResults = playgroundRepository.retrieveDataFromSpecificDatabase(
+						inputRecord.getMatchedExercise().getValidationQuery(), inputRecord.getUserId());
 			} else {
 				obtainedResults = playgroundRepository.retrieveDataFromDefaultDB(input_query);
 			}
@@ -107,6 +97,13 @@ public class ExerciseChecker {
 		} catch (DataAccessException ex) {
 			inputRecord.setQueryStatus(QueryStatus.QUERY_ERROR);
 			inputRecord.setQueryResult(ex.getLocalizedMessage());
+			return inputRecord;
+		}
+
+	
+		// Checking the number of rows
+		if (expectedResults.size() != obtainedResults.size()) {
+			inputRecord.setQueryStatus(QueryStatus.WRONG_NUMBER_ROWS);
 			return inputRecord;
 		}
 

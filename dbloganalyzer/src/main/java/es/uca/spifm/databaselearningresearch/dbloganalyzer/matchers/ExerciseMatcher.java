@@ -1,10 +1,13 @@
 package es.uca.spifm.databaselearningresearch.dbloganalyzer.matchers;
 
-import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 import es.uca.spifm.databaselearningresearch.dbloganalyzer.domain.Exercise;
@@ -14,7 +17,8 @@ import es.uca.spifm.databaselearningresearch.dbloganalyzer.repositories.StudentL
 
 @Component
 public class ExerciseMatcher {
-	private static final double THRESHOLD = 0.5;
+	private static final double THRESHOLD = 0.49;
+	private static final double PUNISHMENT = 0.070;
 	private StudentLogRecordRepository studentLogRecordRepository;
 
 	public ExerciseMatcher(PlaygroundRepository userTableRepository,
@@ -23,75 +27,45 @@ public class ExerciseMatcher {
 		this.studentLogRecordRepository = studentLogRecordRepository;
 	}
 
-	public List<StudentLogRecord> matchLogWithExercises(List<StudentLogRecord> sourceData,
+	
+
+	@Async
+	public CompletableFuture<Void> matchUserLogWithExercises(List<StudentLogRecord> userLogData,
 			List<Exercise> exerciseData) {
 
-		Map<String, List<StudentLogRecord>> eventsByUser = new HashMap<String, List<StudentLogRecord>>();
-		List<StudentLogRecord> userLogs;
-
-		String userId;
-		List<StudentLogRecord> recordsToUpdate = new ArrayList<StudentLogRecord>();
+		Set<Long> previousExerciseIds = new HashSet<Long>();
 
 		// Iterate all the sql logs
-		// for (int i = 0; i < 300; i++) {
-		for (int i = 0; i < sourceData.size(); i++) {
+		for (int i = 0; i < userLogData.size(); i++) {
 
 			// Get the current log
-			StudentLogRecord inputRecord = sourceData.get(i);
-
-			// if (inputRecord.getUserId().equals("u17490334")) {
-			// Get the student id
-			userId = inputRecord.getUserId();
-
-			// Get the previous queries of the student
-			if (eventsByUser.containsKey(userId)) {
-				userLogs = eventsByUser.get(userId);
-			} else {
-				userLogs = new ArrayList<StudentLogRecord>();
-			}
-
+			StudentLogRecord inputRecord = userLogData.get(i);
+			
 			System.out.println(
-					"> Localizando consulta con id=" + inputRecord.getId() + " (" + (i + 1) + "/" + sourceData.size()
+					"> Localizando consulta con id=" + inputRecord.getId() + " (" + (i + 1) + "/" + userLogData.size()
 							+ ") del usuario " + inputRecord.getUserId() + " con texto: " + inputRecord.getQueryText());
 
 			// Try to match the input query with any of the exercises
-			if (discoverExcercise(inputRecord, userLogs, exerciseData)) {
+			if (discoverExcercise(inputRecord, previousExerciseIds, exerciseData)) {
 				System.out.println("> > SI localizada! Ejercicio #" + inputRecord.getMatchedExercise().getId());
-				// studentLogRecordRepository.update(inputRecord);
-				// System.out.println("> > Guardado en base de datos!");
 
-				// Since we have located the exercise, we have to update in DB the data of the
-				// input query
-				recordsToUpdate.add(inputRecord);
-				
 				studentLogRecordRepository.update(inputRecord);
 
+				previousExerciseIds.add(inputRecord.getMatchedExercise().getId());
+
 			} else {
-				System.out.println("> > NO localizada! ");// + inputRecord.getQueryText());
+				System.out.println("> > NO localizada! ");
 
 			}
 
-			userLogs.add(inputRecord);
-
-			eventsByUser.put(userId, userLogs);
-
-			// }
 		}
-
-//		if (recordsToUpdate.size() > 0) {
-//			System.out.println("Actualizando en base de datos la información localizada de " + recordsToUpdate.size()
-//					+ " logs sobre un total de " + sourceData.size());
-//			studentLogRecordRepository.batchUpdate(recordsToUpdate);
-//		}
-
-		return sourceData;
+		return new CompletableFuture<Void>();
 
 	}
 
-	private boolean discoverExcercise(StudentLogRecord inputRecord, List<StudentLogRecord> userPreviousLogs,
+	private boolean discoverExcercise(StudentLogRecord inputRecord, Set<Long> previousExerciseIds,
 			List<Exercise> exerciseData) {
 
-		
 		Exercise currentExercise = null;
 		Double currentDistance = 0.0;
 		Exercise matchedExercise = null;
@@ -99,31 +73,33 @@ public class ExerciseMatcher {
 
 		Double punishesment = 0.0;
 
-		// Locate the sql attempt of the student
-		Exercise lastExercise = searchLastExercise(userPreviousLogs);
-		Long expectedExerciseId = (long) 1;
+		Long expectedExerciseId = searchExpectedExercise(previousExerciseIds);
 
-		if (lastExercise != null) {
-			expectedExerciseId = lastExercise.getId() + 1;
-		}
+		int lowerLimit = (int) Math.max(1, expectedExerciseId - 6);
+		int higherLimit = (int) Math.min(expectedExerciseId + 6, exerciseData.size());
 
-		int lowLimit=(int) Math.max(0, expectedExerciseId-10);
-		int hightLimit=(int) Math.min(expectedExerciseId+10, exerciseData.size() - 1);
-		
-		for (int i = lowLimit; i<=hightLimit; i++) {
+		for (int i = lowerLimit; i <= higherLimit; i++) {
 
-			currentExercise = exerciseData.get(i);
+			currentExercise = exerciseData.get(i - 1);
 			currentDistance = currentExercise.computeDistance(inputRecord.getQueryText());
 
-			punishesment = (double) (Math.abs(expectedExerciseId - i) * 0.1);// conforme más nos alejamos del siguiente
-																			// ejercicio esperado mayor penalización
+			punishesment = (double) (Math.abs(expectedExerciseId - i) * PUNISHMENT);// conforme más nos alejamos del
+																					// siguiente
+			// ejercicio esperado mayor penalización
 
 			currentDistance -= punishesment;
 
-			System.out.println("> > > Comparando con ejer. " + currentExercise.getId() + "["
+			if (expectedExerciseId == i) {
+				System.out.print("* * * ");
+			} else {
+				System.out.print("> > > ");
+			}
+
+			System.out.println("Comparando con ejer. " + currentExercise.getId() + "["
 					+ currentExercise.getProblemQuery() + "]" + ". Distancia actual: " + currentDistance);
+
 			// We hold the most likely exercise
-			if (currentDistance >= THRESHOLD && currentDistance >= matchedDistance) {
+			if (currentDistance > THRESHOLD && currentDistance >= matchedDistance) {
 				matchedExercise = currentExercise;
 				matchedDistance = currentDistance;
 			}
@@ -136,9 +112,6 @@ public class ExerciseMatcher {
 
 			inputRecord.setMatchedExercise(matchedExercise);
 
-			// Evaluate the query to check result
-			// discoverQueryStatus(inputRecord, currentExercise);
-
 			return true;
 
 		} else {
@@ -147,13 +120,13 @@ public class ExerciseMatcher {
 
 	}
 
-	private Exercise searchLastExercise(List<StudentLogRecord> userPreviousLogs) {
+	private Long searchExpectedExercise(Set<Long> previousExerciseIds) {
+		Long result = (long) 1;
 
-		Exercise result = null;
+		for (Long i = (long) 2; i <= 1000; i++) {
 
-		for (int i = userPreviousLogs.size() - 1; i >= 0; i--) {
-			result = userPreviousLogs.get(i).getMatchedExercise();
-			if (result != null) {
+			if (!previousExerciseIds.contains(i)) {
+				result = i;
 				break;
 			}
 		}

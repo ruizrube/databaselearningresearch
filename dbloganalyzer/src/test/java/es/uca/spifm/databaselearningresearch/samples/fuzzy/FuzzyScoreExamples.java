@@ -2,7 +2,7 @@ package es.uca.spifm.databaselearningresearch.samples.fuzzy;
 import java.util.Locale;
 import org.apache.commons.text.similarity.FuzzyScore;
 
-import es.uca.spifm.databaselearningresearch.dbloganalyzer.domain.SelectExercise;
+import es.uca.spifm.databaselearningresearch.dbloganalyzer.domain.exercisetypes.SelectExercise;
 
 public class FuzzyScoreExamples {
 	public static void main(String[] args) {
